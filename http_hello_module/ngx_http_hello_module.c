@@ -45,7 +45,7 @@ static ngx_command_t ngx_http_hello_commands[] =
 
 static int ngx_hello_visited_times = 0;
 
-static ngx_http_module_t ngx_http_hello_module_ctx = 
+static ngx_http_module_t ngx_http_hello_module_ctx =
 {
 	NULL,                          /* preconfiguration */
 	ngx_http_hello_init,           /* postconfiguration: 完成配置文件解析后调用 */
@@ -60,7 +60,7 @@ static ngx_http_module_t ngx_http_hello_module_ctx =
 	NULL                            /* merge location configuration */
 };
 
-ngx_module_t ngx_http_hello_module = 
+ngx_module_t ngx_http_hello_module =
 {
 	NGX_MODULE_V1,                 /* define the first seven fields of struct ngx_module_t */
 	&ngx_http_hello_module_ctx,    /* module context */
@@ -109,14 +109,14 @@ static ngx_int_t ngx_http_hello_handler(ngx_http_request_t *r)
 	content_length = ngx_strlen(ngx_hello_string);
 
 	/* we response to 'GET' and 'HEAD' requests only */
-	if (!(r->method & (NGX_HTTP_GET|NGX_HTTP_HEAD))) 
+	if (!(r->method & (NGX_HTTP_GET|NGX_HTTP_HEAD)))
 	{
 		return NGX_HTTP_NOT_ALLOWED;
 	}
 
 	/* discard request body, since we don't need it here */
 	rc = ngx_http_discard_request_body(r);
-	if (rc != NGX_OK) 
+	if (rc != NGX_OK)
 	{
 		return rc;
 	}
@@ -128,7 +128,7 @@ static ngx_int_t ngx_http_hello_handler(ngx_http_request_t *r)
 	 */
 	ngx_str_set(&r->headers_out.content_type, "text/html");
 	/* send the header only, if the request type is http 'HEAD' */
-	if (r->method == NGX_HTTP_HEAD) 
+	if (r->method == NGX_HTTP_HEAD)
 	{
 		r->headers_out.status = NGX_HTTP_OK;
 		r->headers_out.content_length_n = content_length;
@@ -136,7 +136,7 @@ static ngx_int_t ngx_http_hello_handler(ngx_http_request_t *r)
 	}
 	/* allocate a buffer for your response body */
 	b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
-	if (b == NULL) 
+	if (b == NULL)
 	{
 		return NGX_HTTP_INTERNAL_SERVER_ERROR;
 	}
@@ -208,9 +208,9 @@ static char *ngx_http_hello_string(ngx_conf_t *cf, ngx_command_t *cmd, void *con
 }
 
 
-/* 
+/*
  * 在解析hello_counter命令时执行的解析函数: 将hello_counter(含义：一个bool值)转换为
- * 0或者1，0代表不启用访问计数，1代表启用访问计数 
+ * 0或者1，0代表不启用访问计数，1代表启用访问计数
  * */
 static char *ngx_http_hello_counter(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -222,7 +222,7 @@ static char *ngx_http_hello_counter(ngx_conf_t *cf, ngx_command_t *cmd, void *co
 
 	/* ngx_conf_set_flag_slot：把“on”和“off”转成1和0，并保存到配置文件结构体中 */
 	rv = ngx_conf_set_flag_slot(cf, cmd, conf);
-	
+
 	ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_counter:%d", local_conf->hello_counter);
 	return rv;
 }
@@ -235,7 +235,7 @@ static ngx_int_t ngx_http_hello_init(ngx_conf_t *cf)
 
 	cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
 
-	/* 
+	/*
 	 * 将ngx_http_hello_handler挂载到NGX_HTTP_CONTENT_PHASE阶段，
 	 * CONTENT_PHASE阶段的所有的handler(处理函数)组成一个链表，
 	 * 新挂载的处理函数位于链表头
