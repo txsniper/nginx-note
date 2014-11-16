@@ -1,4 +1,6 @@
 /*
+ * 写模块的config文件一定要注意格式，将dos格式转换为unix格式
+ *
  * 一. http_hello_module模块：
  *      (1).nginx.conf:
  *          server {
@@ -96,6 +98,10 @@
  *              clcf->handler = ngx_http_circle_gif_handler;
  ×              return NGX_CONF_OK;
  ×          }
+
+            4.3 多个模块挂载：
+                挂载的代码写在处理配置项的函数中，也就是command的set函数中，写在postconfiguration函数中貌似在
+            多模块挂载的时候出问题。
  *
  *
  */

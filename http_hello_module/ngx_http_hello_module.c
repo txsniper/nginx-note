@@ -8,7 +8,7 @@ typedef struct
 	ngx_int_t hello_counter;
 }ngx_http_hello_loc_conf_t;
 
-static ngx_int_t ngx_http_hello_init(ngx_conf_t *cf);
+//static ngx_int_t ngx_http_hello_init(ngx_conf_t *cf);
 
 static void *ngx_http_hello_create_loc_conf(ngx_conf_t *cf);
 
@@ -48,8 +48,8 @@ static int ngx_hello_visited_times = 0;
 static ngx_http_module_t ngx_http_hello_module_ctx =
 {
 	NULL,                          /* preconfiguration */
-	ngx_http_hello_init,           /* postconfiguration: 完成配置文件解析后调用 */
-
+	//ngx_http_hello_init,           /* postconfiguration: 完成配置文件解析后调用 */
+    NULL,
 	NULL,                          /* create main configuration */
 	NULL,                          /* init main configuration */
 
@@ -171,7 +171,7 @@ static void *ngx_http_hello_create_loc_conf(ngx_conf_t *cf)
 	local_conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_hello_loc_conf_t));
 	if(local_conf == NULL)
 	{
-		return NULL;
+		return NGX_CONF_ERROR;
 	}
 
 	ngx_str_null(&local_conf->hello_string);
@@ -195,16 +195,20 @@ static void *ngx_http_hello_create_loc_conf(ngx_conf_t *cf)
 static char *ngx_http_hello_string(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
 
-	ngx_http_hello_loc_conf_t* local_conf;
-
-
-	local_conf = conf;
+	ngx_http_core_loc_conf_t *clcf;
+    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_world: handler hooked\n");
+    clcf->handler = ngx_http_hello_handler;
     /* ngx_conf_set_str_slot从配置中获取指令参数，并将参数存储到配置文件结构体中 */
-	char* rv = ngx_conf_set_str_slot(cf, cmd, conf);
+	ngx_conf_set_str_slot(cf, cmd, conf);
 
-	ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_string:%s", local_conf->hello_string.data);
+    // 打印参数结果
+    ngx_http_hello_loc_conf_t* local_conf;
+	local_conf = conf;
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_string:%s", local_conf->hello_string.data);
 
-	return rv;
+
+	return NGX_CONF_OK;
 }
 
 
@@ -214,39 +218,41 @@ static char *ngx_http_hello_string(ngx_conf_t *cf, ngx_command_t *cmd, void *con
  * */
 static char *ngx_http_hello_counter(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
-	ngx_http_hello_loc_conf_t* local_conf;
-
-	local_conf = conf;
-
-	char* rv = NULL;
-
 	/* ngx_conf_set_flag_slot：把“on”和“off”转成1和0，并保存到配置文件结构体中 */
-	rv = ngx_conf_set_flag_slot(cf, cmd, conf);
+	ngx_conf_set_flag_slot(cf, cmd, conf);
 
-	ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_counter:%d", local_conf->hello_counter);
-	return rv;
+    // 打印参数值
+	ngx_http_hello_loc_conf_t* local_conf;
+	local_conf = conf;
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_counter:%d", local_conf->hello_counter);
+
+    return NGX_CONF_OK;
 }
 
-/* 本函数在完成配置文件解析后调用 */
+//本函数在完成配置文件解析后调用
+/*
 static ngx_int_t ngx_http_hello_init(ngx_conf_t *cf)
 {
 	ngx_http_handler_pt        *h;
 	ngx_http_core_main_conf_t  *cmcf;
-
 	cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
 
-	/*
-	 * 将ngx_http_hello_handler挂载到NGX_HTTP_CONTENT_PHASE阶段，
-	 * CONTENT_PHASE阶段的所有的handler(处理函数)组成一个链表，
-	 * 新挂载的处理函数位于链表头
-	 */
+    //将ngx_http_hello_handler挂载到NGX_HTTP_CONTENT_PHASE阶段，
+	// * CONTENT_PHASE阶段的所有的handler(处理函数)组成一个链表，
+	// * 新挂载的处理函数位于链表头
+
 	h = ngx_array_push(&cmcf->phases[NGX_HTTP_CONTENT_PHASE].handlers);
 	if (h == NULL) {
 		return NGX_ERROR;
 	}
 	*h = ngx_http_hello_handler;
+    ngx_http_core_loc_conf_t *clcf;
+    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "hello_world: postconfiguration\n");
+    clcf->handler = ngx_http_hello_handler;
 	return NGX_OK;
 }
+*/
 
 
 
