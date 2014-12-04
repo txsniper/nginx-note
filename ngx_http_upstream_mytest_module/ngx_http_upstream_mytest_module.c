@@ -53,7 +53,7 @@ static ngx_command_t ngx_http_upstream_mytest_commands[] =
     {
         ngx_string("mytest"),
         NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_HTTP_LMT_CONF | NGX_CONF_NOARGS,
-        ngx_http_upstream_mytest,
+        ngx_http_upstream_mytest, // 当碰到mytest配置项时，执行函数ngx_http_upstream_mytest
         NGX_HTTP_LOC_CONF_OFFSET,
         0,
         NULL
@@ -104,7 +104,7 @@ static void* ngx_http_upstream_mytest_create_loc_conf(ngx_conf_t* cf)
     mycf->upstream.read_timeout = 60000;
     mycf->upstream.store_access= 0600;
 
-    // buffering为0时，不开启额外的缓冲区缓存上游返回的结果
+    // buffering为0时，使用固定的缓冲区缓存上游返回的结果
     mycf->upstream.buffering = 0;
     mycf->upstream.bufs.num = 8;
     mycf->upstream.bufs.size = ngx_pagesize;
@@ -219,8 +219,10 @@ static ngx_int_t ngx_http_upstream_mytest_process_header(ngx_http_request_t *r)
     for(;;)
     {
         rc = ngx_http_parse_header_line(r, &r->upstream->buffer, 1);
+        // rc == NGX_OK表明解析出一行HTTP头部
         if (rc == NGX_OK)
         {
+            // 将刚刚解析出来的头部保存到headers_in中
             h = ngx_list_push(&r->upstream->headers_in.headers);
             if (h == NULL)
                 return NGX_ERROR;
@@ -247,14 +249,17 @@ static ngx_int_t ngx_http_upstream_mytest_process_header(ngx_http_request_t *r)
                 ngx_strlow(h->lowcase_key, h->key.data, h->key.len);
             }
 
+            // 在umcf->headers_in_hash中查找key为h->hash的值，如果查找到，则更新值
             hh = ngx_hash_find(&umcf->headers_in_hash, h->hash, h->lowcase_key, h->key.len);
             if (hh && hh->handler(r, h, hh->offset) != NGX_OK)
                 return NGX_ERROR;
             continue;
         }
 
+        // 所有HTTP头部都解析完毕
         if (rc == NGX_HTTP_PARSE_HEADER_DONE)
         {
+            // 如果之前没有从http头部中解析出server和date，则根据HTTP规范添加这两个域
             if (r->upstream->headers_in.server == NULL)
             {
                 h = ngx_list_push(&r->upstream->headers_in.headers);
@@ -281,6 +286,7 @@ static ngx_int_t ngx_http_upstream_mytest_process_header(ngx_http_request_t *r)
             return NGX_OK;
         }
 
+        // 还没解析完整的HTTP头部，需要继续接收上游数据，然后继续解析
         if (rc == NGX_AGAIN)
             return NGX_AGAIN;
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "upstream sent invalid header");
@@ -293,6 +299,7 @@ static void mytest_upstream_finalize_request(ngx_http_request_t *r, ngx_int_t rc
     ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "mytest_upstream_finalize_request");
 }
 
+// 在配置项处理函数中设置handler
 static char* ngx_http_upstream_mytest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t *clcf;
@@ -312,6 +319,7 @@ static ngx_int_t ngx_http_upstream_mytest_handler(ngx_http_request_t *r)
         ngx_http_set_ctx(r, myctx, ngx_http_upstream_mytest_module);
     }
 
+    // 初始化r->upstream成员
     if (ngx_http_upstream_create(r) != NGX_OK)
     {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_upstream_create() failed");
@@ -320,6 +328,8 @@ static ngx_int_t ngx_http_upstream_mytest_handler(ngx_http_request_t *r)
 
     ngx_http_upstream_mytest_conf_t *mycf = (ngx_http_upstream_mytest_conf_t *) ngx_http_get_module_loc_conf(r, ngx_http_upstream_mytest_module);
     ngx_http_upstream_t *u = r->upstream;
+
+    // 将配置结构体中的参数赋给upstream
     u->conf = &mycf->upstream;
     u->buffering = mycf->upstream.buffering;
 
@@ -338,6 +348,7 @@ static ngx_int_t ngx_http_upstream_mytest_handler(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
+    //设置上游的地址，端口
     backendSockAddr.sin_family = AF_INET;
     backendSockAddr.sin_port = htons((in_port_t)80);
     char *pDmsIp = inet_ntoa(*(struct in_addr*)(pHost->h_addr_list[0]));
@@ -349,10 +360,12 @@ static ngx_int_t ngx_http_upstream_mytest_handler(ngx_http_request_t *r)
     u->resolved->socklen = sizeof(struct sockaddr_in);
     u->resolved->naddrs = 1;
 
+    // 设置回调函数
     u->create_request = mytest_upstream_create_request;
     u->process_header = ngx_http_upstream_mytest_process_status_line;
     u->finalize_request = mytest_upstream_finalize_request;
 
+    // 增加引用计数，然后执行初始化
     r->main->count++;
     ngx_http_upstream_init(r);
     return NGX_DONE;
