@@ -104,6 +104,7 @@ static void* ngx_http_upstream_mytest_create_loc_conf(ngx_conf_t* cf)
     mycf->upstream.read_timeout = 60000;
     mycf->upstream.store_access= 0600;
 
+    // buffering为0时，不开启额外的缓冲区缓存上游返回的结果
     mycf->upstream.buffering = 0;
     mycf->upstream.bufs.num = 8;
     mycf->upstream.bufs.size = ngx_pagesize;
@@ -117,6 +118,7 @@ static void* ngx_http_upstream_mytest_create_loc_conf(ngx_conf_t* cf)
     return mycf;
 }
 
+// 合并配置项函数
 static char *ngx_http_upstream_mytest_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
 
@@ -136,7 +138,7 @@ static char *ngx_http_upstream_mytest_merge_loc_conf(ngx_conf_t *cf, void *paren
 // 创建upstream的请求
 static ngx_int_t mytest_upstream_create_request(ngx_http_request_t *r)
 {
-    static ngx_str_t backendQueryLine = ngx_string("GET /search?wd=%V HTTP/1.1\r\nHost:www.baidu.com\r\nConnection: close\r\n\r\n");
+    static ngx_str_t backendQueryLine = ngx_string("GET /s?wd=%V HTTP/1.1\r\nHost:www.baidu.com\r\nConnection: close\r\n\r\n");
 
     ngx_int_t queryLineLen = backendQueryLine.len + r->args.len - 2;
     ngx_buf_t *b = ngx_create_temp_buf(r->pool, queryLineLen);
@@ -144,6 +146,7 @@ static ngx_int_t mytest_upstream_create_request(ngx_http_request_t *r)
         return NGX_ERROR;
     b->last = b->pos + queryLineLen;
     ngx_snprintf(b->pos, queryLineLen, (char*)backendQueryLine.data, &r->args);
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "param is %V", &r->args);
     r->upstream->request_bufs = ngx_alloc_chain_link(r->pool);
     if (r->upstream->request_bufs == NULL)
         return NGX_ERROR;
