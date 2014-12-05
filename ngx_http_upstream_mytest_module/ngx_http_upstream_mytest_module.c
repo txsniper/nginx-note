@@ -1,6 +1,16 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+/*
+ * 执行流程：
+ * 1. 在nginx载入nginx.conf文件时，会解析配置文件，当碰到mytest配置项时，会执行ngx_http_upstream_mytest_create_loc_conf函数和函数ngx_http_upstream_mytest_merge_loc_conf
+ * 2. 在解析配置时，当出现mytest配置项时，将调用配置的方法ngx_http_upstream_mytest函数处理配置项参数
+ * 3. 在ngx_http_upstream_mytest函数中以按需挂载的方式设置处理函数ngx_http_upstream_mytest_handler
+ * 4. 当客户端发来请求时，在ngx_http_upstream_mytest_handler中对请求初始化upstream成员并根据配置项中的参数设置upstream，然后设置upstream的回调方法(create_request, process_header, finalize_request)，最后调用ngx_http_upstream_init启动upstream
+ * 5. upstream模块会去检查文件缓存，如果缓存中已有合适的响应包，则会直接返回缓存，否则将调用create_request创建向上游发送的请求
+ * 6. 当收到上游的响应时，调用注册的process_header函数解析相应头部,下面的例子中将响应的解析拆分为两个函数，分别解析响应行和响应头部
+ *
+ */
 
 // 定义模块相关的上下文结构体
 typedef struct
@@ -319,7 +329,7 @@ static ngx_int_t ngx_http_upstream_mytest_handler(ngx_http_request_t *r)
         ngx_http_set_ctx(r, myctx, ngx_http_upstream_mytest_module);
     }
 
-    // 初始化r->upstream成员
+    // 对请求初始化r->upstream成员
     if (ngx_http_upstream_create(r) != NGX_OK)
     {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_upstream_create() failed");
