@@ -215,6 +215,7 @@ static ngx_int_t ngx_http_upstream_mytest_process_status_line(ngx_http_request_t
     ngx_memcpy(u->headers_in.status_line.data, ctx->status.start, len);
 
     u->process_header = ngx_http_upstream_mytest_process_header;
+    // 在解析完http响应行之后解析http响应头部
     return ngx_http_upstream_mytest_process_header(r);
 }
 
