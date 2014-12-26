@@ -108,6 +108,7 @@ ngx_http_echo_handler(ngx_http_request_t *r)
 
     dd("subrequest in memory: %d", (int) r->subrequest_in_memory);
 
+
     rc = ngx_http_echo_run_cmds(r);
 
     dd("run cmds returned %d", (int) rc);
@@ -151,7 +152,11 @@ ngx_http_echo_handler(ngx_http_request_t *r)
     return NGX_DONE;
 }
 
-
+/*
+    ngx_http_echo_run_cmds主要完成两个任务：
+    1. 解析出要执行的命令参数值(包括求出脚本变量的值和分离出参数选项)
+    2. 根据命令的opcode执行具体的函数
+*/
 ngx_int_t
 ngx_http_echo_run_cmds(ngx_http_request_t *r)
 {
@@ -166,12 +171,13 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
 
 
     elcf = ngx_http_get_module_loc_conf(r, ngx_http_echo_module);
-    //
+
+    // cmds ： 
     cmds = elcf->handler_cmds;
     if (cmds == NULL) {
         return NGX_DECLINED;
     }
-
+    // 如果当前请求r的上下文结构体不存在，则创建一个
     ctx = ngx_http_get_module_ctx(r, ngx_http_echo_module);
     if (ctx == NULL) {
         ctx = ngx_http_echo_create_ctx(r);
@@ -181,12 +187,13 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
 
         ngx_http_set_ctx(r, ctx, ngx_http_echo_module);
     }
-
+    // 
     dd("exec handler: %.*s: %i", (int) r->uri.len, r->uri.data,
             (int) ctx->next_handler_cmd);
 
+    // 处理handler_cmds中每一个命令的参数，利用ngx_http_echo_eval_cmd_args求脚本变量的值
+    // 并解析出参数的选项opts
     cmd_elts = cmds->elts;
-
     for (; ctx->next_handler_cmd < cmds->nelts; ctx->next_handler_cmd++) {
 
         cmd = &cmd_elts[ctx->next_handler_cmd];
@@ -206,6 +213,8 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
 
+            // computed_args获取解析之后的参数(解析脚本变量获取的结果)
+            // opts保存选项
             rc = ngx_http_echo_eval_cmd_args(r, cmd, computed_args, opts);
             if (rc != NGX_OK) {
                 ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,

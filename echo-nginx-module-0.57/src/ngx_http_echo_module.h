@@ -11,7 +11,7 @@
 
 extern ngx_module_t  ngx_http_echo_module;
 
-/* 命令的定义*/
+
 /* config directive's opcode */
 typedef enum {
     echo_opcode_echo_sync,
@@ -41,7 +41,6 @@ typedef enum {
  * and "filter commands". For instance, the "echo"
  * directive is a handler command while
  * "echo_before_body" is a filter one. */
-/* 命令类型 */
 typedef enum {
     echo_handler_cmd,
     echo_filter_cmd
@@ -85,7 +84,6 @@ typedef struct {
 
     ngx_int_t        status;
 } ngx_http_echo_loc_conf_t;
-
 
 typedef struct {
     ngx_int_t       requires_filter;

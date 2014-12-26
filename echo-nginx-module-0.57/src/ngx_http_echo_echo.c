@@ -9,11 +9,13 @@
 
 #include <nginx.h>
 
+// 创建space和'\n'两个static字符串
 static ngx_buf_t ngx_http_echo_space_buf;
 
 static ngx_buf_t ngx_http_echo_newline_buf;
 
 
+// 初始化 space_buf和newline_buf
 ngx_int_t
 ngx_http_echo_echo_init(ngx_conf_t *cf)
 {
@@ -49,7 +51,12 @@ ngx_http_echo_echo_init(ngx_conf_t *cf)
     return NGX_OK;
 }
 
-
+/*
+ 正常的发送包体:
+ ngx_http_echo_send_chain_link:
+    ----> ngx_http_echo_send_header_if_needed 发送响应头部
+    ----> ngx_http_output_filter 发送响应包体
+*/
 ngx_int_t
 ngx_http_echo_exec_echo_sync(ngx_http_request_t *r,
     ngx_http_echo_ctx_t *ctx)
@@ -62,6 +69,11 @@ ngx_http_echo_exec_echo_sync(ngx_http_request_t *r,
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
+    /* 
+        如果整块buffer经过处理完以后，没有数据了，你可以把buffer的sync标志置上，
+        表示只是同步的用处
+                                FROM : http://tengine.taobao.org/book/chapter_4.html
+    */
     buf->sync = 1;
 
     cl = ngx_alloc_chain_link(r->pool);

@@ -1,4 +1,15 @@
+/*
+例如：nginx.conf
+ location /echo  {
+            echo hello;                                                                                                                                                                  
+            echo world;
+         }    
+  location /test {
+            set $foo hello;
+            echo "foo: $foo";
+         }    
 
+*/
 /*
  * Copyright (C) Yichun Zhang (agentzh)
  */
@@ -312,6 +323,7 @@ ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
     cmds_ptr = (ngx_array_t**)(((u_char*)conf) + cmd->offset);
 
     if (*cmds_ptr == NULL) {
+        // 创建一个数组，数组中只有一个大小为sizeof(ngx_http_echo_cmd_t)的元素
         *cmds_ptr = ngx_array_create(cf->pool, 1,
                                      sizeof(ngx_http_echo_cmd_t));
 
@@ -319,6 +331,7 @@ ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
             return NGX_CONF_ERROR;
         }
 
+        // 对于类型为echo_handler_cmd类型的配置项，处理函数为ngx_http_echo_handler
         if (cat == echo_handler_cmd) {
             dd("registering the content handler");
             /* register the content handler */
@@ -334,14 +347,17 @@ ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
         }
     }
 
+    // 向cmd_ptr创建的数组中保存当前的cmd
     echo_cmd = ngx_array_push(*cmds_ptr);
 
     if (echo_cmd == NULL) {
         return NGX_CONF_ERROR;
     }
 
+    // 保存cmd 的opcode
     echo_cmd->opcode = opcode;
 
+    // 创建cmd的参数数组
     args_ptr = &echo_cmd->args;
     *args_ptr = ngx_array_create(cf->pool, 1,
             sizeof(ngx_http_echo_arg_template_t));
@@ -350,17 +366,23 @@ ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
         return NGX_CONF_ERROR;
     }
 
+    /*
+      raw_args: 类型： ngx_str_t， 按照上面的conf配置raw_args[0]: echo ; 
+      raw_args[1]: hello(or world or foo:$foo)
+    */ 
     raw_args = cf->args->elts;
 
     /* we skip the first arg and start from the second */
 
     for (i = 1 ; i < cf->args->nelts; i++) {
+        // 向参数数组中保存参数
         arg = ngx_array_push(*args_ptr);
 
         if (arg == NULL) {
             return NGX_CONF_ERROR;
         }
 
+        // 保存 raw_args[]
         arg->raw_value = raw_args[i];
 
         dd("found raw arg %s", raw_args[i].data);
@@ -368,6 +390,8 @@ ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
         arg->lengths = NULL;
         arg->values  = NULL;
 
+        // 根据 $ 出现在的次数统计出一个配置项参数 中出现了多少个变量(配置中的变量)。nginx的脚本变量
+        // 以$开头，类似于PHP, Perl变量
         n = ngx_http_script_variables_count(&arg->raw_value);
 
         if (n > 0) {
@@ -380,7 +404,7 @@ ngx_http_echo_helper(ngx_http_echo_opcode_t opcode,
             sc.variables = n;
             sc.complete_lengths = 1;
             sc.complete_values = 1;
-
+            // ngx_http_script_compile 将包含变量的参数脚本化，以便需要对参数具体化时调用 脚本进行求值。
             if (ngx_http_script_compile(&sc) != NGX_OK) {
                 return NGX_CONF_ERROR;
             }
@@ -481,6 +505,7 @@ ngx_http_echo_echo_after_body(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
+// 异步的执行subrequest
 static char *
 ngx_http_echo_echo_location_async(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf)
@@ -504,6 +529,7 @@ ngx_http_echo_echo_location_async(ngx_conf_t *cf, ngx_command_t *cmd,
 }
 
 
+// 同步的执行subrequest
 static char *
 ngx_http_echo_echo_location(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -572,6 +598,13 @@ ngx_http_echo_echo_subrequest(ngx_conf_t *cf, ngx_command_t *cmd,
 }
 
 
+// 重复输出
+/*
+# /bighello will generate 1000,000,000 hello's.
+  location /bighello {
+    echo_duplicate 1000_000_000 'hello';
+  }
+*/
 static char *
 ngx_http_echo_echo_duplicate(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {

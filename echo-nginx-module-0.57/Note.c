@@ -34,6 +34,15 @@ values是为了处理nginx变量存在的。
 
 
 执行流程：
-
+    1.  命令的set函数(例如：ngx_http_echo_echo, ngx_http_echo_echo_sleep等等)调用
+        ngx_http_echo_helper函数
+    2.  ngx_http_echo_helper函数根据命令的类型注册处理handler(ngx_http_echo_handler)，
+        并且调用nginx的脚本函数(ngx_http_script_variables_count, ngx_http_script_compile)保存
+        和处理命令参数
+    3.  当服务端收到客户端请求，执行命令时调用ngx_http_echo_handler，handler主要调用
+        ngx_http_echo_run_cmds来根据具体的命令执行响应的函数
+        ngx_http_echo_run_cmds主要完成两个工作：
+        3.1. 解析出要执行的命令参数值(包括求出脚本变量的值和分离出参数选项)
+        3.2. 根据命令的opcode执行具体的函数 
 
 
