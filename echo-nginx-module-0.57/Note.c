@@ -46,3 +46,38 @@ values是为了处理nginx变量存在的。
         3.2. 根据命令的opcode执行具体的函数 
 
 
+相关知识点：
+    1.  ngx_http_clear_content_length和ngx_http_clear_accept_ranges的调用：
+        ngx_http_clear_content_length函数清除响应头部中的content_length字段，
+            ngx_http_clear_accept_ranges函数清除响应头部中的accept_range字段
+
+            Q. ngx_http_clear_content_length 和 ngx_http_clear_accept_ranges 起到了什 么作用，都有哪些场合需要使用？
+
+            A. 这两个函数用于确定无法获知响应的实际长度时，告诉其它 filter 对响应做相应的 处理。具体分析如下：
+                ngx_http_clear_content_length 清空响应包头中 Content-Length 相关的字段：
+
+                    r->headers_out.content_length_n = -1; if (r->headers_out.content_length) 
+                    { r->headers_out.content_length->hash = 0; r->headers_out.content_length = NULL; }
+
+                ngx_http_clear_accept_ranges 清空响应包头中和 Accept-Ranges 相关的字段：
+
+                    r->allow_ranges = 0; if (r->headers_out.accept_ranges) 
+                    { r->headers_out.accept_ranges->hash = 0; r->headers_out.accept_ranges = NULL; }
+
+                ngx_http_range_filter_module 模块由 accept_ranges 向响应包头填充 Accept-Ranges 字段 
+                (告知客户端是否可以请求资源的某个范围内的数据)。动态生成的资源，是不支持通过范围方式请求的。
+
+                content_length_n 标识 Nginx 明确知道请求资源的长度。动态生成的资源，无法获知准确长度的情况下，
+                需要使用 传输编码 对整个报文进行编码，即 Transfer-Encoding。目前最新的 HTTP 规范只定义了一种传输编码，
+                chunked。 ngx_http_chunked_filter_module 负责根据 content_length_n 的值判断是否 添加 Transfer-Encoding 
+                包头 (设置 r->chunked，由 header_filter 添加)。
+
+            content_length的影响：
+                对于http1.0协议来说，如果响应头中有content-length头，则以content-length的长度就可以知道body的长度了，
+            客户端在接收body时，就可以依照这个长度来接收数据，接收完后，就表示这个请求完成了。而如果没有content-length头，
+            则客户端会一直接收数据，直到服务端主动断开连接，才表示body接收完了。
+
+                而对于http1.1协议来说，如果响应头中的Transfer-encoding为chunked传输，则表示body是流式输出，body会被分
+            成多个块，每块的开始会标识出当前块的长度，此时，body不需要通过长度来指定。如果是非chunked传输，而且有
+            content-length，则按照content-length来接收数据。否则，如果是非chunked，并且没有content-length，则客户端
+            接收数据，直到服务端主动断开连接。

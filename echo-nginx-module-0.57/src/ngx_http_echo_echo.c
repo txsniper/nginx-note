@@ -72,7 +72,7 @@ ngx_http_echo_exec_echo_sync(ngx_http_request_t *r,
     /* 
         如果整块buffer经过处理完以后，没有数据了，你可以把buffer的sync标志置上，
         表示只是同步的用处
-                                FROM : http://tengine.taobao.org/book/chapter_4.html
+                        FROM : http://tengine.taobao.org/book/chapter_4.html
     */
     buf->sync = 1;
 
@@ -87,6 +87,10 @@ ngx_http_echo_exec_echo_sync(ngx_http_request_t *r,
     return ngx_http_echo_send_chain_link(r, ctx, cl);
 }
 
+
+/* 完成两个功能：
+ * 1. 将参数字符串串在一起，相互之间用space_buf隔开，结尾加上换行字符串 
+ * 2. 调用ngx_http_echo_send_chain_link发送响应 */
 
 ngx_int_t
 ngx_http_echo_exec_echo(ngx_http_request_t *r,
@@ -113,10 +117,12 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
+    // 遍历每个参数字符串
     computed_arg_elts = computed_args->elts;
     for (i = 0; i < computed_args->nelts; i++) {
         computed_arg = &computed_arg_elts[i];
 
+        // 将参数字符串保存在分配的buf中
         if (computed_arg->len == 0) {
             buf = NULL;
 
@@ -133,6 +139,7 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
             buf->memory = 1;
         }
 
+        // 将所有保存参数字符串的buf串起来保存到ngx_chain_t *cl中，参数字符串之间间隔一个space
         if (cl == NULL) {
             cl = ngx_alloc_chain_link(r->pool);
             if (cl == NULL) {
@@ -155,7 +162,9 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
             if (space_buf == NULL) {
                 return NGX_HTTP_INTERNAL_SERVER_ERROR;
             }
-
+            /* 如下所说：nginx在处理每个request的结尾时会清除掉buf的flags，
+             * 因此我们分配一个space_buf来保存ngx_http_echo_space_buf，而不是
+             * 把ngx_http_echo_space_buf直接串到cl中 */
             /* nginx clears buf flags at the end of each request handling,
              * so we have to make a clone here. */
             *space_buf = ngx_http_echo_space_buf;
@@ -191,7 +200,7 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
     }
 
     /* append the newline character */
-
+    /* 上面附加了参数字符串之后，这里结尾处附加一个换行符字符串 */
     newline_buf = ngx_calloc_buf(r->pool);
 
     if (newline_buf == NULL) {
@@ -223,23 +232,33 @@ ngx_http_echo_exec_echo(ngx_http_request_t *r,
         /* ll = &(*ll)->next; */
     }
 
+    // 生成包体后，发送响应
 done:
 
     if (cl == NULL || cl->buf == NULL) {
         return NGX_OK;
     }
 
+    // 目前in_filter参数为0，不会进入if分支
     if (in_filter) {
         return ngx_http_echo_next_body_filter(r, cl);
     }
-
+    // 调用ngx_http_echo_send_chain_link发送响应：响应头和包体
     return ngx_http_echo_send_chain_link(r, ctx, cl);
 }
 
 
+// 赶紧将数据发送出去
+/*
+ ngx_buf_t : flush字段
+ flush: 遇到有flush字段被设置为1的的buf的chain，则该chain的数据即便不是最后结束的数据
+ （last_buf被设置，标志所有要输出的内容都完了），也会进行输出，不会受postpone_output配置的限制，
+ 但是会受到发送速率等其他条件的限制。
+*/
 ngx_int_t
 ngx_http_echo_exec_echo_flush(ngx_http_request_t *r, ngx_http_echo_ctx_t *ctx)
 {
+    // ngx_http_send_special(r, NGX_HTTP_FLUSH); 分配一个ngx_buf_t，然后设置flush为1,最后发送出去
     return ngx_http_send_special(r, NGX_HTTP_FLUSH);
 }
 
@@ -259,6 +278,12 @@ ngx_http_echo_exec_echo_request_body(ngx_http_request_t *r,
     ll = &out;
 
     for (cl = r->request_body->bufs; cl; cl = cl->next) {
+        /* 
+            检测buf: pass掉特殊的buf
+             #define  ngx_buf_special(b)                                                   \
+                ((b->flush || b->last_buf || b->sync)                                    \
+                && !ngx_buf_in_memory(b) && !b->in_file)
+        */
         if (ngx_buf_special(cl->buf)) {
             /* we do not want to create zero-size bufs */
             continue;
@@ -278,6 +303,7 @@ ngx_http_echo_exec_echo_request_body(ngx_http_request_t *r,
         (*ll)->next = NULL;
 
         ngx_memcpy(b, cl->buf, sizeof(ngx_buf_t));
+        // 这里保存tag用处是什么
         b->tag = (ngx_buf_tag_t) &ngx_http_echo_exec_echo_request_body;
         b->last_buf = 0;
         b->last_in_chain = 0;
@@ -312,6 +338,7 @@ ngx_http_echo_exec_echo_duplicate(ngx_http_request_t *r,
 
     computed_arg_elts = computed_args->elts;
 
+    // 获取重复的次数数字
     computed_arg = &computed_arg_elts[0];
 
     count = ngx_http_echo_atosz(computed_arg->data, computed_arg->len);
@@ -334,6 +361,7 @@ ngx_http_echo_exec_echo_duplicate(ngx_http_request_t *r,
         return NGX_OK;
     }
 
+    // 分配内存并循环copy
     buf = ngx_create_temp_buf(r->pool, count * str->len);
     if (buf == NULL) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
