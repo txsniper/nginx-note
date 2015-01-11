@@ -81,3 +81,73 @@ values是为了处理nginx变量存在的。
             成多个块，每块的开始会标识出当前块的长度，此时，body不需要通过长度来指定。如果是非chunked传输，而且有
             content-length，则按照content-length来接收数据。否则，如果是非chunked，并且没有content-length，则客户端
             接收数据，直到服务端主动断开连接。
+
+
+二. 各种指令的功能：
+
+echo
+
+syntax: echo [options] <string>...
+default: no
+context: location, location if
+phase: content
+Sends arguments joined by spaces, along with a trailing newline, out to the client.
+Note that the data might be buffered by Nginx's underlying buffer. To force the output data flushed immediately, 
+use the echo_flush command just after echo, as in
+
+   echo hello world;
+   echo_flush;
+When no argument is specified, echo emits the trailing newline alone, just like the echo command in shell.
+
+Variables may appear in the arguments. An example is
+
+   echo The current request uri is $request_uri;
+where $request_uri is a variable exposed by the ngx_http_core_module.
+
+This command can be used multiple times in a single location configuration, as in
+
+location /echo {
+    echo hello;
+    echo world;
+}
+The output on the client side looks like this
+
+$ curl 'http://localhost/echo'
+hello
+world
+
+Special characters like newlines (\n) and tabs (\t) can be escaped using C-style escaping sequences. But a notable exception is the dollar sign ($). 
+As of Nginx 0.8.20, there's still no clean way to esacpe this characters. (A work-around might be to use a $echo_dollor variable that is always 
+evaluated to the constant $ character. This feature will possibly be introduced in a future version of this module.)
+
+As of the echo v0.28 release, one can suppress the trailing newline character in the output by using the -n option, as in
+
+location /echo {
+    echo -n "hello, ";
+    echo "world";
+}
+Accessing /echo gives
+
+$ curl 'http://localhost/echo'
+hello, world
+Leading -n in variable values won't take effect and will be emitted literally, as in
+
+location /echo {
+    set $opt -n;
+    echo $opt "hello,";
+    echo "world";
+}
+This gives the following output
+
+$ curl 'http://localhost/echo'
+-n hello,
+world
+One can output leading -n literals and other options using the special -- option like this
+
+location /echo {
+    echo -- -n is an option;
+}
+which yields
+
+$ curl 'http://localhost/echo'
+-n is an option

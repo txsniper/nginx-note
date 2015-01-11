@@ -23,6 +23,8 @@ ngx_int_t
 ngx_http_echo_exec_echo_read_request_body(ngx_http_request_t* r,
     ngx_http_echo_ctx_t *ctx)
 {
+    // 读取客户端的request_body，并不会阻塞，读取完request_body后调用
+    // ngx_http_echo_post_read_request_body来处理
     return ngx_http_read_client_request_body(r,
                                         ngx_http_echo_post_read_request_body);
 }

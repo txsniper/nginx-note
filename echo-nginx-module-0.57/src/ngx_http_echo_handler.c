@@ -230,6 +230,7 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
             rc = ngx_http_echo_exec_echo_sync(r, ctx);
             break;
 
+        /*  命令： echo */
         case echo_opcode_echo:
             /* XXX moved the following code to a separate
              * function */
@@ -237,11 +238,12 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
             rc = ngx_http_echo_exec_echo(r, ctx, computed_args,
                                          0 /* in filter */, opts);
             break;
-
+        /*  命令： echo_request_body */
         case echo_opcode_echo_request_body:
             rc = ngx_http_echo_exec_echo_request_body(r, ctx);
             break;
 
+        /*  命令： echo_location_async */
         case echo_opcode_echo_location_async:
             if (!r->request_body) {
                 /* we require reading the request body before doing
@@ -255,7 +257,7 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
             rc = ngx_http_echo_exec_echo_location_async(r, ctx,
                                                         computed_args);
             break;
-
+        /*  命令： echo_location   */
         case echo_opcode_echo_location:
             if (!r->request_body) {
                 /* we require reading the request body before doing
@@ -267,6 +269,7 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
 
             return ngx_http_echo_exec_echo_location(r, ctx, computed_args);
 
+        /*  命令： echo_subrequest_async */
         case echo_opcode_echo_subrequest_async:
             if (!r->request_body) {
                 /* we require reading the request body before doing
@@ -280,7 +283,7 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
             rc = ngx_http_echo_exec_echo_subrequest_async(r, ctx,
                                                           computed_args);
             break;
-
+        /*  命令： echo_subrequest */
         case echo_opcode_echo_subrequest:
             if (!r->request_body) {
                 /* we require reading the request body before doing
@@ -291,7 +294,7 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
             }
 
             return ngx_http_echo_exec_echo_subrequest(r, ctx, computed_args);
-
+        /*  命令： eecho_sleep  */
         case echo_opcode_echo_sleep:
             return ngx_http_echo_exec_echo_sleep(r, ctx, computed_args);
 
@@ -314,6 +317,7 @@ ngx_http_echo_run_cmds(ngx_http_request_t *r)
 
         case echo_opcode_echo_read_request_body:
 
+// 为什么要首先读取request_body
 read_request_body:
 
             ctx->wait_read_request_body = 0;

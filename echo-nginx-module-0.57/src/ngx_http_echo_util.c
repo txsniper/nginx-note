@@ -34,7 +34,7 @@ ngx_http_echo_create_ctx(ngx_http_request_t *r)
     return ctx;
 }
 
-
+// 解析参数选项和脚本变量
 ngx_int_t
 ngx_http_echo_eval_cmd_args(ngx_http_request_t *r,
     ngx_http_echo_cmd_t *cmd, ngx_array_t *computed_args,
@@ -47,7 +47,7 @@ ngx_http_echo_eval_cmd_args(ngx_http_request_t *r,
     ngx_flag_t                       expecting_opts = 1;
 
     value = args->elts;
-
+    /* 解析参数选项和参数值 */
     for (i = 0; i < args->nelts; i++) {
         raw = &value[i].raw_value;
 
@@ -79,6 +79,7 @@ ngx_http_echo_eval_cmd_args(ngx_http_request_t *r,
             expecting_opts = 0;
         }
 
+        /* 计算脚本变量值 */
         arg = ngx_array_push(computed_args);
         if (arg == NULL) {
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
