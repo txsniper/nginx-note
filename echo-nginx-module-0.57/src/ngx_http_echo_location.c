@@ -44,6 +44,7 @@ ngx_http_echo_exec_echo_location_async(ngx_http_request_t *r,
     args.data = NULL;
     args.len = 0;
 
+    // 判断location是否是一个安全的URI
     if (ngx_http_parse_unsafe_uri(r, &location, &args, &flags) != NGX_OK) {
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "echo_location_async sees unsafe uri: \"%V\"",
@@ -55,11 +56,13 @@ ngx_http_echo_exec_echo_location_async(ngx_http_request_t *r,
         url_args = &args;
     }
 
+    // 发送响应头部
     rc = ngx_http_echo_send_header_if_needed(r, ctx);
     if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
         return rc;
     }
 
+    // 发送subrequest
     rc = ngx_http_subrequest(r, &location, url_args, &sr, NULL, 0);
 
     if (rc != NGX_OK) {
@@ -130,6 +133,10 @@ ngx_http_echo_exec_echo_location(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
+    /*
+        subrequest执行完后，将会调用ngx_http_echo_post_subrequest方法，
+        注意，此时传给你的ngx_http_request_t上下文是子请求的，不是原始的父请求
+    */
     psr->handler = ngx_http_echo_post_subrequest;
     psr->data = sr_ctx;
 
@@ -149,6 +156,32 @@ ngx_http_echo_exec_echo_location(ngx_http_request_t *r,
 }
 
 
+// 调整subrequest，这里没怎么懂
+/*
+    应该是这个bug:
+    ngx_http_core_module.c, line 2080 (in 0.8.33):
+sr->headers_in = r->headers_in;
+
+This results in a bitwise copy of headers_in from the parent request
+to the subrequest. Inside headers_in is a list:
+typedef struct {
+ngx_list_t headers;
+// ...
+} ngx_http_headers_in_t;
+
+When you do a bitwise copy of an ngx_list_t, you end up with a broken
+list. Specifically, sr->headers_in->list->last in the subrequest
+points to the last node in the r->headers_in.list.part chain in the
+parent request. It should instead point to the last node in the
+subrequest's sr->headers_in.list.part chain.
+
+Thus if any module attempts to add more headers to the subrequest's
+sr->headers_in, they actually will be added to the parent request's
+r->headers_in instead.
+
+I ran into this problem in a module that needs to add extra request
+headers to a proxied subrequest.
+*/
 static ngx_int_t
 ngx_http_echo_adjust_subrequest(ngx_http_request_t *sr)
 {

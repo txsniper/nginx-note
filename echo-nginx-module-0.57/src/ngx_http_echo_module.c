@@ -504,7 +504,14 @@ ngx_http_echo_echo_after_body(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                                 cf, cmd, conf);
 }
 
+/*
+echo_location 命令在子请求创建成功后 “挂起” 当前请求，直到其子请求完成后，
+再通过 post_subrequest 回调函数即 ngx_http_echo_post_subrequest 继续该请求的执行。
 
+echo_location_async 命令在子请求创建成功后继续处理当前请求。Nginx 同时
+处理子请求逻辑，然后依靠 postpone filter 组织和调整最终的响应内容。
+
+*/
 // 异步的执行subrequest
 static char *
 ngx_http_echo_echo_location_async(ngx_conf_t *cf, ngx_command_t *cmd,
